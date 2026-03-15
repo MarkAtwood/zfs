@@ -7,6 +7,7 @@ AC_DEFUN([ZFS_AC_CONFIG_KERNEL], [
 		dnl # Setup the kernel build environment.
 		ZFS_AC_KERNEL
 		ZFS_AC_QAT
+		ZFS_AC_WOLFSSL
 
 		dnl # Sanity checks for module building and CONFIG_* defines
 		ZFS_AC_KERNEL_CONFIG_DEFINED
@@ -605,6 +606,65 @@ AC_DEFUN([ZFS_AC_QAT], [
 	$QAT_SYMBOLS
 			])
 		])
+	])
+])
+
+dnl #
+dnl # ZFS_AC_WOLFSSL
+dnl #
+dnl # Optionally use wolfSSL (libwolfssl.ko) as the cryptographic provider
+dnl # for ZFS dataset encryption instead of the built-in ICP implementations.
+dnl #
+dnl # Usage:
+dnl #   ./configure --with-wolfssl=/path/to/wolfssl
+dnl #
+dnl # Requirements:
+dnl #   1) wolfSSL must be configured with --enable-linuxkm and built so that
+dnl #      linuxkm/libwolfssl.ko and linuxkm/Module.symvers exist.
+dnl #   2) libwolfssl.ko must be loaded before the ZFS module.
+dnl #
+AC_DEFUN([ZFS_AC_WOLFSSL], [
+	AC_ARG_WITH([wolfssl],
+		AS_HELP_STRING([--with-wolfssl=PATH],
+		[Path to wolfssl source (enables wolfSSL crypto backend)]),
+		AS_IF([test "$withval" = "yes"],
+			AC_MSG_ERROR([--with-wolfssl=PATH requires a PATH]),
+			[wolfsslsrc="$withval"]))
+
+	AS_IF([test ! -z "${wolfsslsrc}"], [
+		AC_MSG_CHECKING([wolfssl source directory])
+		AC_MSG_RESULT([$wolfsslsrc])
+
+		WOLFSSL_ROOT="${wolfsslsrc}"
+		WOLFSSL_INCLUDE="${WOLFSSL_ROOT}/linuxkm/build/include"
+
+		AS_IF([! test -d "$WOLFSSL_INCLUDE/wolfssl"], [
+			dnl # Try the source tree headers as fallback
+			WOLFSSL_INCLUDE="${WOLFSSL_ROOT}"
+			AS_IF([! test -e "$WOLFSSL_INCLUDE/wolfssl/options.h" && \
+			       ! test -e "$WOLFSSL_INCLUDE/wolfssl/wolfcrypt/aes.h"], [
+				AC_MSG_ERROR([
+	*** Cannot find wolfSSL headers.  Please make sure wolfSSL is built
+	*** with --enable-linuxkm and specify the source path with
+	*** '--with-wolfssl=PATH'.  Expected headers in:
+	${WOLFSSL_ROOT}/linuxkm/build/include/wolfssl  or
+	${WOLFSSL_ROOT}/wolfssl])
+			])
+		])
+
+		WOLFSSL_SYMBOLS="${WOLFSSL_ROOT}/linuxkm/Module.symvers"
+		AS_IF([! test -r "$WOLFSSL_SYMBOLS"], [
+			AC_MSG_WARN([
+	*** wolfSSL Module.symvers not found at $WOLFSSL_SYMBOLS
+	*** You may need to build wolfSSL first.  Continuing anyway.])
+			WOLFSSL_SYMBOLS=""
+		])
+
+		AC_SUBST(WOLFSSL_INCLUDE)
+		AC_SUBST(WOLFSSL_SYMBOLS)
+
+		AC_DEFINE(HAVE_WOLFSSL, 1,
+		[wolfSSL crypto backend is enabled])
 	])
 ])
 

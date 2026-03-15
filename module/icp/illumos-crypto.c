@@ -105,6 +105,16 @@
  * ZFS Makefiles.
  */
 
+/*
+ * wolfSSL backend (optional, enabled with --with-wolfssl):
+ *
+ * When built with HAVE_WOLFSSL, the AES and SHA2 HMAC providers are
+ * replaced by wolfssl_aes.c and wolfssl_sha2.c respectively.  These
+ * delegate all cryptographic operations to the libwolfssl.ko kernel
+ * module.  The built-in AES cipher code and GCM/CCM mode code are not
+ * compiled; SHA2 hash code (used for checksums) remains.
+ */
+
 void
 icp_fini(void)
 {
@@ -131,7 +141,15 @@ icp_init(void)
 	 */
 	kcf_sched_init();
 
-	/* initialize algorithms */
+	/*
+	 * Initialize algorithms.
+	 *
+	 * When HAVE_WOLFSSL is defined, the AES and SHA2 providers are
+	 * implemented by wolfssl_aes.c and wolfssl_sha2.c respectively,
+	 * which call into the libwolfssl.ko kernel module.  The same
+	 * aes_mod_init() / sha2_mod_init() entry point names are used
+	 * so no changes are needed here.
+	 */
 	aes_mod_init();
 	sha2_mod_init();
 

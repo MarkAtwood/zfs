@@ -18,6 +18,50 @@
  * Copyright (c) 2017, Datto, Inc. All rights reserved.
  */
 
+#if defined(HAVE_WOLFSSL) && defined(_KERNEL) && defined(__linux__)
+/*
+ * wolfSSL-based HKDF-SHA512 implementation.
+ *
+ * When wolfSSL is available, we call wc_HKDF() directly rather than going
+ * through the ICP crypto_mac() abstraction.  This is simpler and avoids
+ * the overhead of the KCF dispatch layer for key derivation.
+ */
+
+#include <sys/zfs_context.h>
+#include <sys/hkdf.h>
+
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/kdf.h>
+
+/*
+ * HKDF is designed to be a relatively fast function for deriving keys from a
+ * master key + a salt. We use this function to generate new encryption keys
+ * so as to avoid hitting the cryptographic limits of the underlying
+ * encryption modes. Note that, for the sake of deriving encryption keys, the
+ * info parameter is called the "salt" everywhere else in the code.
+ */
+int
+hkdf_sha512(uint8_t *key_material, uint_t km_len, uint8_t *salt,
+    uint_t salt_len, uint8_t *info, uint_t info_len, uint8_t *output_key,
+    uint_t out_len)
+{
+	int ret;
+
+	ret = wc_HKDF(WC_SHA512,
+	    (const byte *)key_material, (word32)km_len,
+	    (const byte *)salt, (word32)salt_len,
+	    (const byte *)info, (word32)info_len,
+	    (byte *)output_key, (word32)out_len);
+
+	if (ret != 0)
+		return (SET_ERROR(EIO));
+
+	return (0);
+}
+
+#else /* !HAVE_WOLFSSL || !_KERNEL || !__linux__ */
+
 #include <sys/crypto/api.h>
 #include <sys/sha2.h>
 #include <sys/hkdf.h>
@@ -168,3 +212,5 @@ hkdf_sha512(uint8_t *key_material, uint_t km_len, uint8_t *salt,
 
 	return (0);
 }
+
+#endif /* HAVE_WOLFSSL && _KERNEL && __linux__ */

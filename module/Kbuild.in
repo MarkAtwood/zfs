@@ -60,6 +60,10 @@ CFLAGS_REMOVE_os/linux/spl/spl-math-compat.o += -Wmissing-declarations
 ifneq ($(KBUILD_EXTMOD),)
 @CONFIG_QAT_TRUE@ZFS_MODULE_CFLAGS += -I@QAT_SRC@/include
 @CONFIG_QAT_TRUE@KBUILD_EXTRA_SYMBOLS += @QAT_SYMBOLS@
+@CONFIG_WOLFSSL_TRUE@ZFS_MODULE_CFLAGS += -DHAVE_WOLFSSL
+@CONFIG_WOLFSSL_TRUE@ZFS_MODULE_CFLAGS += -I@WOLFSSL_INCLUDE@
+@CONFIG_WOLFSSL_TRUE@ZFS_MODULE_CFLAGS += -isystem $(shell $(CC) -print-file-name=include)
+@CONFIG_WOLFSSL_TRUE@KBUILD_EXTRA_SYMBOLS += @WOLFSSL_SYMBOLS@
 endif
 
 asflags-y := $(ZFS_MODULE_CFLAGS) $(ZFS_MODULE_CPPFLAGS)
@@ -126,20 +130,24 @@ ICP_OBJS := \
 	illumos-crypto.o \
 	spi/kcf_spi.o
 
-# ICP AES/GCM/CCM cipher and HMAC provider objects.
-ICP_OBJS += \
-	algs/aes/aes_impl.o \
-	algs/aes/aes_impl_generic.o \
-	algs/aes/aes_modes.o \
-	algs/modes/ccm.o \
-	algs/modes/gcm.o \
-	algs/modes/gcm_generic.o \
-	algs/modes/modes.o \
-	io/aes.o \
-	io/sha2_mod.o
+# When wolfSSL is enabled, AES and SHA2-HMAC providers delegate to
+# libwolfssl.ko; otherwise the built-in ICP implementations are used.
+@CONFIG_WOLFSSL_TRUE@ICP_OBJS += \
+@CONFIG_WOLFSSL_TRUE@	io/wolfssl_aes.o \
+@CONFIG_WOLFSSL_TRUE@	io/wolfssl_sha2.o
+@CONFIG_WOLFSSL_FALSE@ICP_OBJS += \
+@CONFIG_WOLFSSL_FALSE@	algs/aes/aes_impl.o \
+@CONFIG_WOLFSSL_FALSE@	algs/aes/aes_impl_generic.o \
+@CONFIG_WOLFSSL_FALSE@	algs/aes/aes_modes.o \
+@CONFIG_WOLFSSL_FALSE@	algs/modes/ccm.o \
+@CONFIG_WOLFSSL_FALSE@	algs/modes/gcm.o \
+@CONFIG_WOLFSSL_FALSE@	algs/modes/gcm_generic.o \
+@CONFIG_WOLFSSL_FALSE@	algs/modes/modes.o \
+@CONFIG_WOLFSSL_FALSE@	io/aes.o \
+@CONFIG_WOLFSSL_FALSE@	io/sha2_mod.o
 
-# Architecture-specific objects: hash asm (always needed) and
-# AES/GCM mode asm.
+# Architecture-specific objects.  SHA2 and blake3 asm are always needed;
+# AES and GCM mode asm are only needed with the built-in crypto.
 ICP_OBJS_X86_64 := \
 	asm-x86_64/blake3/blake3_avx2.o \
 	asm-x86_64/blake3/blake3_avx512.o \
@@ -148,19 +156,20 @@ ICP_OBJS_X86_64 := \
 	asm-x86_64/sha2/sha256-x86_64.o \
 	asm-x86_64/sha2/sha512-x86_64.o
 
-ICP_OBJS_X86_64 += \
-	asm-x86_64/aes/aes_aesni.o \
-	asm-x86_64/aes/aes_amd64.o \
-	asm-x86_64/aes/aeskey.o \
-	asm-x86_64/modes/aesni-gcm-x86_64.o \
-	asm-x86_64/modes/aesni-gcm-avx2-vaes.o \
-	asm-x86_64/modes/gcm_pclmulqdq.o \
-	asm-x86_64/modes/ghash-x86_64.o
+@CONFIG_WOLFSSL_FALSE@ICP_OBJS_X86_64 += \
+@CONFIG_WOLFSSL_FALSE@	asm-x86_64/aes/aes_aesni.o \
+@CONFIG_WOLFSSL_FALSE@	asm-x86_64/aes/aes_amd64.o \
+@CONFIG_WOLFSSL_FALSE@	asm-x86_64/aes/aeskey.o \
+@CONFIG_WOLFSSL_FALSE@	asm-x86_64/modes/aesni-gcm-x86_64.o \
+@CONFIG_WOLFSSL_FALSE@	asm-x86_64/modes/aesni-gcm-avx2-vaes.o \
+@CONFIG_WOLFSSL_FALSE@	asm-x86_64/modes/gcm_pclmulqdq.o \
+@CONFIG_WOLFSSL_FALSE@	asm-x86_64/modes/ghash-x86_64.o
 
-ICP_OBJS_X86 := \
-	algs/aes/aes_impl_aesni.o \
-	algs/aes/aes_impl_x86-64.o \
-	algs/modes/gcm_pclmulqdq.o
+@CONFIG_WOLFSSL_FALSE@ICP_OBJS_X86 := \
+@CONFIG_WOLFSSL_FALSE@	algs/aes/aes_impl_aesni.o \
+@CONFIG_WOLFSSL_FALSE@	algs/aes/aes_impl_x86-64.o \
+@CONFIG_WOLFSSL_FALSE@	algs/modes/gcm_pclmulqdq.o
+@CONFIG_WOLFSSL_TRUE@ICP_OBJS_X86 :=
 
 ICP_OBJS_ARM := \
 	asm-arm/sha2/sha256-armv7.o \

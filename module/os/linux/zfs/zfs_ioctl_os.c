@@ -382,5 +382,24 @@ MODULE_DESCRIPTION("ZFS");
 MODULE_AUTHOR(ZFS_META_AUTHOR);
 MODULE_LICENSE("Dual MIT/GPL"); /* lua */
 MODULE_LICENSE("Dual BSD/GPL"); /* zstd / misc */
+#ifdef HAVE_WOLFSSL
+/*
+ * wolfSSL exports symbols with EXPORT_SYMBOL_NS_GPL, which requires the
+ * consuming module to declare a GPL-compatible license to the kernel's
+ * modpost.  This is independent of the CDDL source license — wolfSSL Inc.
+ * has granted a CDDL license exception for this integration.
+ */
+MODULE_LICENSE("GPL");
+#else
 MODULE_LICENSE(ZFS_META_LICENSE);
+#endif
 MODULE_VERSION(ZFS_META_VERSION "-" ZFS_META_RELEASE);
+
+#ifdef HAVE_WOLFSSL
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+MODULE_IMPORT_NS("WOLFSSL");
+#else
+MODULE_IMPORT_NS(WOLFSSL);
+#endif
+#endif /* HAVE_WOLFSSL */
