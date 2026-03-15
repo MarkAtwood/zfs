@@ -102,18 +102,13 @@ spl-objs += $(addprefix os/linux/spl/,$(SPL_OBJS))
 
 zfs-objs += avl/avl.o
 
+# ICP common objects: hash algorithms (SHA2, blake3, edonr, skein),
+# the KCF framework, and the SPI layer.
 ICP_OBJS := \
-	algs/aes/aes_impl.o \
-	algs/aes/aes_impl_generic.o \
-	algs/aes/aes_modes.o \
 	algs/blake3/blake3.o \
 	algs/blake3/blake3_generic.o \
 	algs/blake3/blake3_impl.o \
 	algs/edonr/edonr.o \
-	algs/modes/ccm.o \
-	algs/modes/gcm.o \
-	algs/modes/gcm_generic.o \
-	algs/modes/modes.o \
 	algs/sha2/sha2_generic.o \
 	algs/sha2/sha256_impl.o \
 	algs/sha2/sha512_impl.o \
@@ -129,20 +124,34 @@ ICP_OBJS := \
 	core/kcf_prov_tabs.o \
 	core/kcf_sched.o \
 	illumos-crypto.o \
-	io/aes.o \
-	io/sha2_mod.o \
 	spi/kcf_spi.o
 
+# ICP AES/GCM/CCM cipher and HMAC provider objects.
+ICP_OBJS += \
+	algs/aes/aes_impl.o \
+	algs/aes/aes_impl_generic.o \
+	algs/aes/aes_modes.o \
+	algs/modes/ccm.o \
+	algs/modes/gcm.o \
+	algs/modes/gcm_generic.o \
+	algs/modes/modes.o \
+	io/aes.o \
+	io/sha2_mod.o
+
+# Architecture-specific objects: hash asm (always needed) and
+# AES/GCM mode asm.
 ICP_OBJS_X86_64 := \
-	asm-x86_64/aes/aes_aesni.o \
-	asm-x86_64/aes/aes_amd64.o \
-	asm-x86_64/aes/aeskey.o \
 	asm-x86_64/blake3/blake3_avx2.o \
 	asm-x86_64/blake3/blake3_avx512.o \
 	asm-x86_64/blake3/blake3_sse2.o \
 	asm-x86_64/blake3/blake3_sse41.o \
 	asm-x86_64/sha2/sha256-x86_64.o \
-	asm-x86_64/sha2/sha512-x86_64.o \
+	asm-x86_64/sha2/sha512-x86_64.o
+
+ICP_OBJS_X86_64 += \
+	asm-x86_64/aes/aes_aesni.o \
+	asm-x86_64/aes/aes_amd64.o \
+	asm-x86_64/aes/aeskey.o \
 	asm-x86_64/modes/aesni-gcm-x86_64.o \
 	asm-x86_64/modes/aesni-gcm-avx2-vaes.o \
 	asm-x86_64/modes/gcm_pclmulqdq.o \
