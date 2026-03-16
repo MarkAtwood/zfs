@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/mod_compat.h>
 #else
 #define	__exit
 #define	__init
@@ -114,6 +115,17 @@
  * module.  The built-in AES cipher code and GCM/CCM mode code are not
  * compiled; SHA2 hash code (used for checksums) remains.
  */
+
+#ifdef HAVE_WOLFSSL
+static char *icp_crypto_backend = "wolfssl";
+#else
+static char *icp_crypto_backend = "icp";
+#endif
+
+#ifdef _KERNEL
+ZFS_MODULE_PARAM(zfs, icp_, crypto_backend, STRING, ZMOD_RD,
+	"Cryptographic backend for ZFS encryption (icp or wolfssl)");
+#endif
 
 void
 icp_fini(void)
